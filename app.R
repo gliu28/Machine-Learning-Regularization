@@ -1,4 +1,4 @@
-#intall.Packages(c("regclass", "caret", "glmnet", "pROC", "randomForest","xgboost", "Matrix", "shiny", "shinydashboard"))
+#intall.Packages(c("e1071", "regclass", "caret", "glmnet", "pROC", "randomForest","xgboost", "Matrix", "shiny", "shinydashboard"))
 
 
 library(shiny)
@@ -65,6 +65,7 @@ ui <- dashboardPage(
               
               htmlOutput("LRfit"),
               br(),
+              
               htmlOutput("LRAUC")
               
       ),
@@ -74,8 +75,10 @@ ui <- dashboardPage(
               
               htmlOutput("RRfit"),
               br(),
+              
               htmlOutput("RRAUC"),
               br(),
+              
               selectInput("RRvar", 
                           label = "Choose Lambda:",
                           choices = c("lambda.min", 
@@ -91,8 +94,10 @@ ui <- dashboardPage(
               
               htmlOutput("Lassofit"),
               br(),
+              
               htmlOutput("LassoAUC"),
               br(),
+              
               selectInput("Lassovar", 
                           label = "Choose Lambda:",
                           choices = c("lambda.min", 
@@ -104,7 +109,19 @@ ui <- dashboardPage(
       ),
       
       # Seven tab content
-      tabItem(tabName = "Elastic_Net_Regreesion", h2("Elastic Net Regreesion"))
+      tabItem(tabName = "Elastic_Net_Regreesion", h2("Elastic Net Regreesion"),
+              
+              htmlOutput("ENBest"),
+              br(),
+              
+              htmlOutput("ENfit"),
+              br(),
+              
+              htmlOutput("ENAUC"),
+              br(),
+
+              plotOutput("ENLambda")
+              )
     )
   )
 )
@@ -118,6 +135,7 @@ server <- function(input, output) {
   library(randomForest)
   library(xgboost)
   library(Matrix)
+  library(e1071)
   
   data(LAUNCH)
   
@@ -222,6 +240,29 @@ server <- function(input, output) {
   
   Lasso.AUC <- c(AUC.Lasso.1se, AUC.Lasso.min)
 
+  ## Elastic Net Regression
+  
+  # Build the model using the training set
+  train.data <- cbind.data.frame(x.train, y.train)
+  
+  set.seed(1234)
+  EN.model <- train(
+    y.train ~., data =train.data, method = "glmnet",
+    trControl = trainControl("cv", number = 10),
+    tuneLength = 5
+  )
+  
+  # Best tuning parameter
+  ENBest <- as.numeric(EN.model$bestTune)
+  
+  # Coefficient of the final model. You need
+  # to specify the best lambda
+  ENcoef <- coef(EN.model$finalModel, EN.model$bestTune$lambda)
+  
+  # Model performance metrics
+  predictions <-  EN.model %>% predict(x.test) %>% as.numeric()
+  EN.AUC <- roc(y.test, predictions)$auc
+  
   # Create reactivevalues for variables
   state <- reactiveValues()
   
@@ -239,22 +280,22 @@ server <- function(input, output) {
   
   output$LogisticsModel <- renderText(
     
-    paste("<B>Logistics Regression Models:</B> ", HTML("&nbsp; SSE<sub>Logistics</sub> &nbsp;=&nbsp; &sum;&nbsp;(y-y&#770;)<sup>2</sup>"))
+    paste("<B>Logistics Regression Model:</B> ", HTML("&nbsp; SSE<sub>Logistics</sub> &nbsp;=&nbsp; &sum;&nbsp;(y-y&#770;)<sup>2</sup>"))
   )
   
   output$RidgeModel <- renderText(
     
-    paste("<B>Ridge Regression Models:</B> ", HTML("&nbsp; SSE<sub>Ridge</sub> &nbsp;=&nbsp; &sum;&nbsp;(y-y&#770;)<sup>2</sup>&nbsp;+&nbsp;&lambda;&nbsp;&sum;&nbsp;&beta;<sup>2</sup>"))
+    paste("<B>Ridge Regression Model:</B> ", HTML("&nbsp; SSE<sub>Ridge</sub> &nbsp;=&nbsp; &sum;&nbsp;(y-y&#770;)<sup>2</sup>&nbsp;+&nbsp;&lambda;&nbsp;&sum;&nbsp;&beta;<sup>2</sup>"))
   )
   
   output$LassoModel <- renderText(
     
-    paste("<B>Lasso Regression Models:</B> ", HTML("&nbsp; SSE<sub>Lasso</sub> &nbsp;=&nbsp; &sum;&nbsp;(y-y&#770;)<sup>2</sup>&nbsp;+&nbsp;&lambda;&nbsp;&sum;&nbsp;|&beta;|"))
+    paste("<B>Lasso Regression Model:</B> ", HTML("&nbsp; SSE<sub>Lasso</sub> &nbsp;=&nbsp; &sum;&nbsp;(y-y&#770;)<sup>2</sup>&nbsp;+&nbsp;&lambda;&nbsp;&sum;&nbsp;|&beta;|"))
   )
   
   output$ENModel <- renderText(
     
-    paste("<B>Elastic Net Regression Models:</B> ", 
+    paste("<B>Elastic Net Regression Model:</B> ", 
           HTML("&nbsp; SSE<sub>Elastic NEt</sub> &nbsp;=&nbsp;&sum;&nbsp;(y-y&#770;)<sup>2</sup>&nbsp;+&nbsp;&lambda;&nbsp;[&nbsp;(1-&alpha;)&nbsp;&sum;&nbsp;&beta;<sup>2</sup>&nbsp;+&nbsp;&alpha;&nbsp;&sum;&nbsp;|&beta;|&nbsp;]"))
   )
   
@@ -317,6 +358,27 @@ server <- function(input, output) {
 
   # output Elastic Net Regression
   
+  output$ENLambda <- renderPlot(
+    plot(EN.model)
+  )
+  
+  output$ENBest <- renderText(
+    
+    HTML("<B> Best alpha: </B> &nbsp;", round(ENBest[1],2), "&nbsp; &nbsp; <B>Best lambda:</B> &nbsp;", round(ENBest[2],4))
+  )
+  
+  output$ENfit <- renderText(
+    
+    paste("<B>Elastic Net Model:</B> y = ", round(ENcoef[1],2), "*intercept + ",
+          round(ENcoef[2],2), "*x4 + ",
+          round(ENcoef[3],2), "*x2 + ",
+          round(ENcoef[4],2), "*x3 + ",
+          round(ENcoef[5],2), "*x374 + ",
+          round(ENcoef[6],2), "*x5")
+    
+  )
+  
+  output$ENAUC <- renderText( paste("<B> Area under the curve: </B>", round(EN.AUC,4)))
   
   }
 shinyApp(ui, server)
