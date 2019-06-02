@@ -5,7 +5,7 @@ library(shiny)
 library(shinydashboard)
 
 ui <- dashboardPage(
-  dashboardHeader(title = "REGULATION"),
+  dashboardHeader(title = "REGULARIZATION"),
   dashboardSidebar(
     sidebarMenu(
       menuItem("About", tabName = "about", icon = icon("list-alt")),
@@ -136,6 +136,7 @@ server <- function(input, output) {
   library(xgboost)
   library(Matrix)
   library(e1071)
+  library(tidyverse)
   
   data(LAUNCH)
   
