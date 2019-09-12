@@ -1,5 +1,4 @@
-#intall.Packages(c("e1071", "regclass", "caret", "glmnet", "pROC", "randomForest","xgboost", "Matrix", "shiny", "shinydashboard"))
-
+install.packages(c("tidyverse","e1071", "regclass", "caret", "glmnet", "pROC", "randomForest","xgboost", "Matrix", "shiny", "shinydashboard"))
 
 library(shiny)
 library(shinydashboard)
